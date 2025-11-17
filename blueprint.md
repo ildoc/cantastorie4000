@@ -11,10 +11,11 @@
 4. [Preparazione Componenti](#-preparazione-componenti)
 5. [Assemblaggio Hardware](#-assemblaggio-hardware)
 6. [Configurazione Software](#-configurazione-software)
-7. [Struttura File Audio](#-struttura-file-audio)
-8. [Costruzione Scatola](#-costruzione-scatola)
-9. [App Bluetooth](#-app-bluetooth)
-10. [Testing e Troubleshooting](#-testing-e-troubleshooting)
+7. [USB-C Dual Mode](#-usb-c-dual-mode)
+8. [Struttura File Audio](#-struttura-file-audio)
+9. [Costruzione Scatola](#-costruzione-scatola)
+10. [App Bluetooth](#-app-bluetooth)
+11. [Testing e Troubleshooting](#-testing-e-troubleshooting)
 
 ---
 
@@ -22,10 +23,13 @@
 
 ### Caratteristiche Principali
 - **Controllo NFC**: Tag colorati per selezionare playlist
-- **Controlli fisici**: 5 pulsanti arcade (Play/Pausa, Vol+, Vol-, Next, Prev)
-- **App Bluetooth**: Gestione remota, associazione tag, upload file audio
-- **Autonomia**: 6-8 ore di riproduzione continua
+- **Controlli fisici**: 3 pulsanti arcade (Play/Pausa, Next, Prev) + Potenziometro volume
+- **App Bluetooth**: Gestione remota, associazione tag NFC
+- **MicroSD estraibile**: Slot esterno per facile aggiornamento contenuti
+- **Indicatore batteria**: LED bicolore per stato carica
+- **Autonomia**: 7-9 ore di riproduzione continua
 - **Avvio rapido**: 2-3 secondi dall'accensione
+- **USB-C**: Ricarica batteria (+ opzionale trasferimento dati)
 
 ### Specifiche Tecniche
 - **Microcontrollore**: ESP32 (WiFi + Bluetooth integrati)
@@ -56,17 +60,21 @@
 | Componente | Specifiche | Quantità | Prezzo |
 |------------|------------|----------|--------|
 | **Batteria 18650** | 3.7V 3000mAh protetta | 1-2 | €10 | Marca affidabile (LG, Samsung, Panasonic) |
-| **Porta-batteria 18650** | Con fili e interruttore | 1 | €3 | Preferibilmente con switch integrato |
-| **Interruttore ON/OFF** | Con LED rosso | 1 | €2 | Tipo rocker switch |
-| **Cavo USB-C** | Per ricarica | 1 | €3 | Qualsiasi da 50cm |
+| **Porta-batteria 18650** | Con fili | 1 | €3 | |
+| **Interruttore ON/OFF** | Rocker switch | 1 | €2 | |
+| **Cavo USB-C** | Per ricarica | 1 | €3 | |
 
 ### Audio e Controlli
 
 | Componente | Specifiche | Quantità | Prezzo |
 |------------|------------|----------|--------|
 | **Speaker** | 4Ω 3W, 50mm | 1 | €6 | Preferisci full-range |
-| **Pulsanti Arcade** | 30mm, colorati | 5 | €10 | Colori: Rosso, Blu, Verde, Giallo, Bianco |
+| **Pulsanti Arcade** | 30mm, colorati | 3 | €6 | Colori: Rosso, Giallo, Bianco |
+| **Potenziometro** | 10KΩ lineare con manopola | 1 | €3 | Per controllo volume |
+| **LED Bicolore** | 5mm rosso/verde catodo comune | 1 | €1 | Indicatore batteria |
+| **MicroSD Extension** | Cavo adattatore 10-15cm | 1 | €4 | Slot esterno per SD |
 | **Tag NFC** | NTAG215 o NTAG213 | 10 | €8 | Adesivi o portachiavi |
+| **Resistori** | 100KΩ, 47KΩ, 220Ω (2x) | 4 | €1 | Per partitore tensione e LED |
 
 ### Materiali per Costruzione
 
@@ -81,16 +89,7 @@
 | **Colla a caldo** | Stick | 10 | €5 | Per fissaggio componenti |
 | **Vernice atossica** | Acrilica colorata | - | €10 | Opzionale |
 
-### Strumenti Necessari
-
-- Saldatore (30-40W)
-- Multimetro
-- Trapano con punte (5mm, 30mm)
-- Seghetto per legno
-- Carta vetrata (grana 120-220)
-- Pinze, cacciaviti
-
-**COSTO TOTALE STIMATO**: €90-120
+**COSTO TOTALE STIMATO**: €95-115
 
 ---
 
@@ -115,7 +114,7 @@
    ┌────────┐        ┌─────────┐       ┌──────────┐
    │  ESP32 │        │ DFPlayer│       │  PN532   │
    │        │        │  Mini   │       │   NFC    │
-   │  5V    │        │  5V     │       │   5V     │
+   │  5V    │        │  5V     │       │   3.3V   │
    └────────┘        └─────────┘       └──────────┘
         │                  │                  │
         │ TX(17)──────────>│ RX              │
@@ -125,17 +124,18 @@
         │ SCL(22)─────────────────────────────> SCL
         │                  │                  │
         │ GPIO13 ─────> [Pulsante PLAY]      │
-        │ GPIO12 ─────> [Pulsante VOL+]      │
-        │ GPIO14 ─────> [Pulsante VOL-]      │
         │ GPIO27 ─────> [Pulsante NEXT]      │
         │ GPIO26 ─────> [Pulsante PREV]      │
+        │ GPIO34 ─────> [Potenziometro VOL]  │
+        │ GPIO35 ─────> [Partitore Batteria] │
+        │ GPIO25 ─────> [LED Rosso]          │
+        │ GPIO33 ─────> [LED Verde]          │
         │                  │                  │
         │                  │ SPK+ ──┐         │
         │                  │ SPK- ──┼───> [PAM8403]
         │                  │        │          │
         │                  │        │          ↓
         │                  │        │    [Speaker 4Ω]
-        │                  │        │
         └──────────────────┴────────┴──────────┘
 ```
 
@@ -145,13 +145,13 @@
 ```
 ESP32          DFPlayer
 ─────          ────────
-GPIO17 (TX) -> RX
+GPIO17 (TX) -> RX (via resistenza 1KΩ)
 GPIO16 (RX) <- TX
 5V          -> VCC
 GND         -> GND
 ```
 
-**IMPORTANTE**: Il DFPlayer necessita di una resistenza da 1KΩ tra RX del DFPlayer e TX dell'ESP32 per proteggere il modulo.
+**IMPORTANTE**: Resistenza 1KΩ tra TX ESP32 e RX DFPlayer per protezione.
 
 #### ESP32 ↔ PN532 (I2C)
 ```
@@ -159,11 +159,11 @@ ESP32          PN532
 ─────          ─────
 GPIO21 (SDA) -> SDA
 GPIO22 (SCL) -> SCL
-3.3V         -> VCC (usare 3.3V, non 5V!)
+3.3V         -> VCC (USARE 3.3V, NON 5V!)
 GND          -> GND
 ```
 
-**CONFIGURAZIONE PN532**: Posizionare i jumper per modalità I2C:
+**CONFIGURAZIONE PN532**: Jumper per modalità I2C:
 - CH1: OFF
 - CH2: ON
 
@@ -171,135 +171,112 @@ GND          -> GND
 ```
 ESP32          Pulsante
 ─────          ────────
-GPIO13      -> PLAY/PAUSA (Rosso)
-GPIO12      -> VOL+ (Verde)
-GPIO14      -> VOL- (Blu)
+GPIO13      -> PLAY (Rosso)
 GPIO27      -> NEXT (Giallo)
 GPIO26      -> PREV (Bianco)
-GND         -> Altro terminale pulsante
+GND         -> Altro terminale
 ```
 
-Ogni pulsante va collegato con **pull-up interno** (configurato via software).
+Pull-up interno configurato via software.
+
+#### ESP32 ↔ Potenziometro Volume
+```
+Potenziometro 10KΩ
+─────────────────
+Pin 1 (GND)    -> GND
+Pin 2 (Wiper)  -> GPIO34 (ADC)
+Pin 3 (VCC)    -> 3.3V
+```
+
+#### ESP32 ↔ LED Batteria
+```
+Partitore tensione:
+Batteria+ ──[100KΩ]──┬──> GPIO35 (ADC)
+                     │
+                  [47KΩ]
+                     │
+                    GND
+
+LED Bicolore:
+GPIO25 ──[220Ω]──> LED Rosso ──┐
+GPIO33 ──[220Ω]──> LED Verde ──┤
+                                ├──> GND (catodo comune)
+```
 
 #### DFPlayer ↔ PAM8403 ↔ Speaker
 ```
 DFPlayer       PAM8403        Speaker
 ────────       ───────        ───────
-SPK_1 (R+)  -> RIN           
-DAC_R       -> (opzionale)
-SPK_2 (L+)  -> LIN          -> Speaker+ (canale L)
-DAC_L       -> (opzionale)
+SPK_1       -> RIN
+SPK_2       -> LIN          -> Speaker+
 GND         -> GND          -> Speaker-
 
 PAM8403 VCC -> 5V
-```
-
-**NOTA**: Il DFPlayer ha uscita amplificata (SPK_1/SPK_2) ma di bassa potenza. Per maggior volume, usa l'uscita DAC con PAM8403.
-
-#### Alimentazione - Schema Completo
-```
-Batteria+ ──> [Switch] ──> TP4056 IN+ ──┬──> MT3608 IN+
-                           TP4056 OUT+   │
-                                         │
-USB-C+ ────────────────> TP4056 USB+    │
-                                         │
-Batteria- ──> TP4056 IN- ────────────────┴──> MT3608 IN-
-USB-C-    ──> TP4056 USB-                    
-                                         
-MT3608 OUT+ (5V regolati) ──> ESP32 5V, DFPlayer VCC, PAM8403 VCC
-MT3608 OUT- (GND)         ──> GND comune
 ```
 
 ---
 
 ## 🔧 PREPARAZIONE COMPONENTI
 
-### 1. Test Iniziale dei Moduli
-
-#### Test ESP32
-1. Collegare ESP32 via USB al PC
-2. Aprire Arduino IDE
-3. Caricare sketch di test:
+### 1. Test ESP32
 ```cpp
 void setup() {
   Serial.begin(115200);
   Serial.println("ESP32 Test OK!");
 }
-
-void loop() {
-  delay(1000);
-}
+void loop() { delay(1000); }
 ```
-4. Verificare output sul Serial Monitor
 
-#### Test DFPlayer Mini
-1. **Preparare microSD**:
-   - Formattare in FAT32
-   - Creare cartella `/mp3/`
-   - Copiare file: `0001.mp3`, `0002.mp3` (rinominare con numerazione a 4 cifre)
-   
-2. **Collegamento test**:
-   - VCC → 5V (power bank)
-   - GND → GND
-   - SPK_1 → Speaker+
-   - SPK_2 → Speaker-
-   
-3. **Verificare**: dovrebbe riprodurre automaticamente la prima traccia
+### 2. Test DFPlayer Mini
+- Formattare microSD in FAT32
+- Creare cartella `/mp3/`
+- Copiare `0001.mp3`, `0002.mp3`
+- Collegare a 5V + speaker
+- Dovrebbe riprodurre automaticamente
 
-#### Test PN532
-1. Configurare jumper per I2C (CH1=OFF, CH2=ON)
-2. Collegare a ESP32 (SDA, SCL, 3.3V, GND)
-3. Caricare esempio da libreria `Adafruit_PN532`
-4. Avvicinare tag NFC, verificare lettura UID
+### 3. Test PN532
+- Configurare jumper I2C (CH1=OFF, CH2=ON)
+- Collegare a ESP32 (3.3V!)
+- Caricare esempio `Adafruit_PN532`
+- Testare lettura tag
 
-### 2. Configurazione MT3608 (Step-up)
+### 4. Configurazione MT3608
+**PRIMA di collegare l'ESP32:**
+1. Input 3.7V
+2. Misurare output
+3. Regolare a **5.0V precisi**
+4. Segnare posizione
 
-**PRIMA di collegare l'ESP32**:
-1. Collegare input a 3.7V (batteria o alimentatore)
-2. Misurare output con multimetro
-3. Ruotare potenziometro con cacciavite fino a leggere **5.0V** precisi
-4. Segnare posizione con pennarello indelebile
-
-### 3. Test TP4056
-
-1. Collegare batteria 18650 a OUT+ e OUT-
-2. Collegare USB-C
-3. Verificare:
-   - LED rosso acceso = in carica
-   - LED blu acceso = carica completa
-4. Misurare tensione batteria: deve essere 3.7-4.2V
+### 5. Test TP4056
+- Collegare batteria 18650
+- Collegare USB-C
+- LED rosso = in carica
+- LED blu = carica completa
 
 ---
 
 ## 🔨 ASSEMBLAGGIO HARDWARE
 
-### FASE 1: Saldature dei Moduli
+### FASE 1: Saldature
 
-#### A. Preparare l'ESP32
-1. Saldare header maschio (30 pin) se non presenti
-2. Verificare continuità con multimetro
+#### A. ESP32
+Saldare header 30 pin se necessario
 
-#### B. Cablaggio DFPlayer
+#### B. DFPlayer
 ```
-Preparare 4 cavi da 15cm:
-- Rosso:   VCC (saldare a pin VCC)
-- Nero:    GND (saldare a pin GND)
-- Giallo:  TX (via resistenza 1KΩ → RX DFPlayer)
-- Verde:   RX (diretto a TX DFPlayer)
+4 cavi da 15cm:
+- Rosso:   VCC
+- Nero:    GND
+- Giallo:  TX (con resistenza 1KΩ)
+- Verde:   RX
 
-Preparare 2 cavi da 10cm per speaker:
-- Rosso:   SPK_1
-- Nero:    SPK_2
+2 cavi per speaker:
+- SPK_1, SPK_2
 ```
 
-**SCHEMA RESISTENZA**:
+#### C. PN532
 ```
-ESP32 TX (GPIO17) ───[ 1KΩ ]─── RX DFPlayer
-```
-
-#### C. Cablaggio PN532
-```
-Preparare 4 cavi da 15cm:
+4 cavi da 15cm:
 - Rosso:   VCC
 - Nero:    GND
 - Blu:     SDA
@@ -307,110 +284,67 @@ Preparare 4 cavi da 15cm:
 ```
 
 #### D. Pulsanti
-Ogni pulsante arcade ha 2 terminali:
-1. Saldare cavo a un terminale (GPIO)
-2. Saldare cavo GND all'altro terminale
-3. Usare cavi di colore corrispondente al pulsante
+Un cavo a GPIO, uno a GND comune.
 
-**SUGGERIMENTO**: Crea un cavo GND comune con 5 diramazioni usando saldature o morsetti Wago.
+#### E. Potenziometro
+```
+3 cavi da 10cm:
+- Nero:    GND
+- Rosso:   3.3V
+- Giallo:  Wiper → GPIO34
+```
 
-### FASE 2: Assemblaggio Breadboard di Test
+#### F. LED Batteria
+```
+Partitore: 100KΩ + 47KΩ → GPIO35
+LED: Anodi via 220Ω → GPIO25/33
+Catodo → GND
+```
 
-Prima di saldare definitivamente, testare su breadboard:
+### FASE 2: Test su Breadboard
+Testare ogni modulo singolarmente prima di assemblare definitivamente.
 
-1. **Inserire ESP32** al centro della breadboard
-2. **Collegare alimentazione**:
-   - Rail + → 5V (da MT3608 o USB)
-   - Rail - → GND
-3. **Collegare moduli uno alla volta**:
-   - Prima DFPlayer → testare audio
-   - Poi PN532 → testare lettura tag
-   - Infine pulsanti → testare input
-4. **Caricare software di test** (vedi sezione Software)
-
-### FASE 3: Assemblaggio Definitivo
-
-#### Schema di Montaggio nella Scatola
+### FASE 3: Layout nella Scatola
 
 ```
-Vista dall'alto della scatola (15x10cm):
+Vista dall'alto (15x10cm):
 
 ┌────────────────────────────────────┐
-│  [●]                    [Griglia]  │  ← Speaker + griglia
-│ LED                      Speaker   │
+│  ●                      [Griglia]  │  ← LED + Speaker
 │                                    │
-│  [○] [○] [○] [○] [○]              │  ← 5 pulsanti arcade
-│ PLAY  +   -  NEXT PREV             │
+│  [●]  [●]  [●]          [🎚️]      │  ← Pulsanti + Volume
+│  PLAY PREV NEXT         VOLUME    │
 │                                    │
-│        ┌─────────────┐             │
-│        │   Antenna   │             │  ← PN532 (zona NFC)
-│        │     NFC     │             │
-│        └─────────────┘             │
+│        ┌──────────┐                │
+│        │   NFC    │                │  ← Zona PN532
+│        └──────────┘                │
 │                                    │
-│  Componenti interni sotto:         │
-│  - ESP32                           │
-│  - DFPlayer                        │
-│  - PAM8403                         │
-│  - MT3608                          │
-│  - TP4056                          │
-│  - Batteria 18650                  │
-│                                    │
-│              [USB-C] [Switch]      │  ← Ricarica + accensione
+│  Componenti interni sotto          │
 └────────────────────────────────────┘
+
+Pannello posteriore:
+│  [SD]═══  [USB-C]  [○]Switch      │
 ```
 
-#### Ordine di Montaggio
+### FASE 4: Montaggio
 
-1. **Preparare la scatola** (vedi sezione Costruzione Scatola)
+1. **Forare pannello frontale**:
+   - 3 fori 30mm (pulsanti)
+   - 1 foro 8mm (potenziometro)
+   - 1 foro 60mm (speaker)
+   - 1 foro 5mm (LED)
 
-2. **Montare componenti sul pannello frontale**:
-   - Forare 5 fori da 30mm per pulsanti
-   - Forare 1 foro da 60mm per speaker
-   - Montare speaker con viti M3 o colla a caldo
-   - Inserire pulsanti arcade (si fissano a scatto)
-   - Fissare griglia protettiva
+2. **Forare pannello posteriore**:
+   - Slot microSD (15x2mm)
+   - USB-C (10x4mm)
+   - Switch (12mm)
 
-3. **Montare sul pannello laterale**:
-   - Forare per interruttore ON/OFF
-   - Forare per porta USB-C (TP4056)
-   - Montare LED di stato (collegato a TP4056)
+3. **Fissare componenti interni**:
+   - ESP32/DFPlayer: viti M3 + distanziali
+   - Altri moduli: colla a caldo
+   - Batteria: supporto o velcro
 
-4. **Layout interno** (su base in compensato con distanziali):
-```
-Disposizione ottimale:
-
-[Batteria 18650]    [MT3608]
-                    [TP4056]
-
-[ESP32]            [DFPlayer]
-                   [MicroSD]
-
-[PN532] (sotto pulsanti)
-[PAM8403] (vicino speaker)
-```
-
-5. **Fissaggio componenti**:
-   - ESP32: 4 viti M3 con distanziali
-   - Altri moduli: colla a caldo (lasciare possibilità di rimozione)
-   - Batteria: supporto dedicato o velcro forte
-   - Cavi: organizzare con fascette
-
-6. **Routing cavi**:
-   - Tenere separati cavi di potenza da quelli segnale
-   - Cavi speaker lontani da ESP32 (interferenze)
-   - Lasciare cavi abbastanza lunghi per manutenzione
-
-### FASE 4: Test Pre-Chiusura
-
-**PRIMA di chiudere la scatola**:
-
-1. ✅ Verificare tutte le connessioni con multimetro
-2. ✅ Testare ogni pulsante (Serial Monitor)
-3. ✅ Testare NFC con 3-4 tag diversi
-4. ✅ Riprodurre audio a volume massimo per 5 minuti
-5. ✅ Verificare temperatura ESP32 e PAM8403 (non >60°C)
-6. ✅ Testare ricarica batteria (LED TP4056)
-7. ✅ Misurare autonomia (almeno 2 ore test)
+4. **Test pre-chiusura** ✅
 
 ---
 
@@ -418,22 +352,15 @@ Disposizione ottimale:
 
 ### Installazione Arduino IDE
 
-1. Scaricare Arduino IDE 2.x da arduino.cc
-2. **Installare supporto ESP32**:
-   - File → Preferences
-   - URL boards manager: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-   - Tools → Board → Boards Manager
-   - Cercare "ESP32" by Espressif
-   - Installare versione 2.0.14 o superiore
+1. Scaricare Arduino IDE 2.x
+2. Aggiungere supporto ESP32:
+   - URL: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+3. Installare librerie:
+   - `DFRobotDFPlayerMini`
+   - `Adafruit PN532`
+   - `ArduinoJson`
 
-3. **Installare librerie**:
-   - Tools → Manage Libraries
-   - Installare:
-     - `DFRobotDFPlayerMini` (1.0.6+)
-     - `Adafruit PN532` (1.4.0+)
-     - `ArduinoJson` (6.21.0+)
-
-### Codice Principale (Sketch)
+### Codice Completo
 
 ```cpp
 #include <Arduino.h>
@@ -449,10 +376,12 @@ Disposizione ottimale:
 #define PN532_SDA 21
 #define PN532_SCL 22
 #define BTN_PLAY 13
-#define BTN_VOL_UP 12
-#define BTN_VOL_DOWN 14
 #define BTN_NEXT 27
 #define BTN_PREV 26
+#define VOLUME_POT 34
+#define BATTERY_PIN 35
+#define LED_RED 25
+#define LED_GREEN 33
 
 // Objects
 HardwareSerial DFSerial(1);
@@ -462,29 +391,35 @@ BluetoothSerial SerialBT;
 Preferences preferences;
 
 // Variables
-int currentVolume = 15; // 0-30
+int currentVolume = 15;
 bool isPlaying = false;
 String lastTagUID = "";
 unsigned long lastTagTime = 0;
-const int TAG_DEBOUNCE = 2000; // ms
+const int TAG_DEBOUNCE = 2000;
+const int MAX_SAFE_VOLUME = 25;
 
-// Button states
-bool lastPlayState = HIGH;
-bool lastVolUpState = HIGH;
-bool lastVolDownState = HIGH;
-bool lastNextState = HIGH;
-bool lastPrevState = HIGH;
+// Battery monitoring constants
+const float VOLTAGE_DIVIDER = 3.14;
+const float ADC_REFERENCE = 3.3;
+const float ADC_MAX = 4095.0;
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Lettore Musicale NFC - Avvio...");
   
-  // Init buttons
+  // Init pins
   pinMode(BTN_PLAY, INPUT_PULLUP);
-  pinMode(BTN_VOL_UP, INPUT_PULLUP);
-  pinMode(BTN_VOL_DOWN, INPUT_PULLUP);
   pinMode(BTN_NEXT, INPUT_PULLUP);
   pinMode(BTN_PREV, INPUT_PULLUP);
+  pinMode(VOLUME_POT, INPUT);
+  pinMode(BATTERY_PIN, INPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  
+  // LED test
+  digitalWrite(LED_GREEN, HIGH);
+  delay(500);
+  digitalWrite(LED_GREEN, LOW);
   
   // Init DFPlayer
   DFSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
@@ -492,7 +427,7 @@ void setup() {
   
   if (!dfPlayer.begin(DFSerial)) {
     Serial.println("Errore DFPlayer!");
-    while(true) { delay(1000); }
+    while(true) delay(1000);
   }
   
   Serial.println("DFPlayer OK");
@@ -501,8 +436,7 @@ void setup() {
   
   // Init NFC
   nfc.begin();
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (!versiondata) {
+  if (!nfc.getFirmwareVersion()) {
     Serial.println("Errore PN532!");
   } else {
     Serial.println("PN532 OK");
@@ -523,77 +457,104 @@ void setup() {
 
 void loop() {
   checkButtons();
+  checkVolume();
+  checkBattery();
   checkNFC();
   checkBluetooth();
   delay(50);
 }
 
 void checkButtons() {
-  // Play/Pause
-  bool playState = digitalRead(BTN_PLAY);
-  if (playState == LOW && lastPlayState == HIGH) {
-    delay(50); // debounce
+  static bool lastPlay = HIGH, lastNext = HIGH, lastPrev = HIGH;
+  
+  bool play = digitalRead(BTN_PLAY);
+  if (play == LOW && lastPlay == HIGH) {
+    delay(50);
     if (isPlaying) {
       dfPlayer.pause();
       isPlaying = false;
-      Serial.println("Pausa");
     } else {
       dfPlayer.start();
       isPlaying = true;
-      Serial.println("Play");
     }
   }
-  lastPlayState = playState;
+  lastPlay = play;
   
-  // Volume Up
-  bool volUpState = digitalRead(BTN_VOL_UP);
-  if (volUpState == LOW && lastVolUpState == HIGH) {
-    delay(50);
-    if (currentVolume < 30) {
-      currentVolume++;
-      dfPlayer.volume(currentVolume);
-      preferences.putInt("volume", currentVolume);
-      Serial.print("Volume: ");
-      Serial.println(currentVolume);
-    }
-  }
-  lastVolUpState = volUpState;
-  
-  // Volume Down
-  bool volDownState = digitalRead(BTN_VOL_DOWN);
-  if (volDownState == LOW && lastVolDownState == HIGH) {
-    delay(50);
-    if (currentVolume > 0) {
-      currentVolume--;
-      dfPlayer.volume(currentVolume);
-      preferences.putInt("volume", currentVolume);
-      Serial.print("Volume: ");
-      Serial.println(currentVolume);
-    }
-  }
-  lastVolDownState = volDownState;
-  
-  // Next
-  bool nextState = digitalRead(BTN_NEXT);
-  if (nextState == LOW && lastNextState == HIGH) {
+  bool next = digitalRead(BTN_NEXT);
+  if (next == LOW && lastNext == HIGH) {
     delay(50);
     dfPlayer.next();
-    Serial.println("Next track");
   }
-  lastNextState = nextState;
+  lastNext = next;
   
-  // Previous
-  bool prevState = digitalRead(BTN_PREV);
-  if (prevState == LOW && lastPrevState == HIGH) {
+  bool prev = digitalRead(BTN_PREV);
+  if (prev == LOW && lastPrev == HIGH) {
     delay(50);
     dfPlayer.previous();
-    Serial.println("Previous track");
   }
-  lastPrevState = prevState;
+  lastPrev = prev;
+}
+
+void checkVolume() {
+  static unsigned long lastCheck = 0;
+  static int lastVol = -1;
+  
+  if (millis() - lastCheck > 200) {
+    int raw = analogRead(VOLUME_POT);
+    int vol = map(raw, 0, 4095, 0, MAX_SAFE_VOLUME);
+    
+    if (abs(vol - lastVol) > 1) {
+      currentVolume = vol;
+      dfPlayer.volume(vol);
+      preferences.putInt("volume", vol);
+      Serial.print("Volume: ");
+      Serial.println(vol);
+      lastVol = vol;
+    }
+    lastCheck = millis();
+  }
+}
+
+float readBatteryVoltage() {
+  int raw = analogRead(BATTERY_PIN);
+  return (raw / ADC_MAX) * ADC_REFERENCE * VOLTAGE_DIVIDER;
+}
+
+int getBatteryPercentage(float voltage) {
+  if (voltage >= 4.2) return 100;
+  if (voltage <= 3.0) return 0;
+  return (int)((voltage - 3.0) / 1.2 * 100);
+}
+
+void checkBattery() {
+  static unsigned long lastCheck = 0;
+  static bool ledState = false;
+  
+  if (millis() - lastCheck > 30000) {
+    float voltage = readBatteryVoltage();
+    int percent = getBatteryPercentage(voltage);
+    
+    Serial.print("Batteria: ");
+    Serial.print(voltage);
+    Serial.print("V (");
+    Serial.print(percent);
+    Serial.println("%)");
+    
+    if (percent > 20) {
+      digitalWrite(LED_GREEN, HIGH);
+      digitalWrite(LED_RED, LOW);
+    } else {
+      digitalWrite(LED_GREEN, LOW);
+      ledState = !ledState;
+      digitalWrite(LED_RED, ledState);
+    }
+    
+    lastCheck = millis();
+  }
 }
 
 void checkNFC() {
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t uid[7];
   uint8_t uidLength;
   
   if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 100)) {
@@ -604,13 +565,10 @@ void checkNFC() {
     }
     tagUID.toUpperCase();
     
-    // Debounce: ignore same tag within 2 seconds
     if (tagUID != lastTagUID || (millis() - lastTagTime) > TAG_DEBOUNCE) {
       Serial.print("Tag NFC: ");
       Serial.println(tagUID);
-      
       handleNFCTag(tagUID);
-      
       lastTagUID = tagUID;
       lastTagTime = millis();
     }
@@ -618,7 +576,6 @@ void checkNFC() {
 }
 
 void handleNFCTag(String uid) {
-  // Load folder associated with this tag
   String key = "tag_" + uid;
   int folder = preferences.getInt(key.c_str(), 0);
   
@@ -629,40 +586,35 @@ void handleNFCTag(String uid) {
     isPlaying = true;
   } else {
     Serial.println("Tag non associato");
-    // Play error sound or beep
-    dfPlayer.playMp3Folder(9999); // file speciale per errore
+    dfPlayer.playMp3Folder(9999);
   }
 }
 
 void checkBluetooth() {
   if (SerialBT.available()) {
-    String command = SerialBT.readStringUntil('\n');
-    command.trim();
-    
-    handleBluetoothCommand(command);
+    String cmd = SerialBT.readStringUntil('\n');
+    cmd.trim();
+    handleBluetoothCommand(cmd);
   }
 }
 
 void handleBluetoothCommand(String cmd) {
-  Serial.print("BT Command: ");
+  Serial.print("BT: ");
   Serial.println(cmd);
   
-  // Parse JSON command (esempio: {"cmd":"play","folder":1})
-  // Implementazione completa nella sezione App
-  
-  if (cmd.startsWith("PLAY")) {
+  if (cmd == "PLAY") {
     dfPlayer.start();
     isPlaying = true;
     SerialBT.println("OK");
   }
-  else if (cmd.startsWith("PAUSE")) {
+  else if (cmd == "PAUSE") {
     dfPlayer.pause();
     isPlaying = false;
     SerialBT.println("OK");
   }
   else if (cmd.startsWith("VOL:")) {
     int vol = cmd.substring(4).toInt();
-    if (vol >= 0 && vol <= 30) {
+    if (vol >= 0 && vol <= MAX_SAFE_VOLUME) {
       currentVolume = vol;
       dfPlayer.volume(vol);
       preferences.putInt("volume", vol);
@@ -675,37 +627,83 @@ void handleBluetoothCommand(String cmd) {
     SerialBT.println("OK");
   }
   else if (cmd.startsWith("ASSOCIATE:")) {
-    // Formato: ASSOCIATE:TAG_UID:FOLDER_NUM
-    // Es: ASSOCIATE:04A1B2C3:1
-    int sep1 = cmd.indexOf(':', 11);
-    String tagUID = cmd.substring(11, sep1);
-    int folder = cmd.substring(sep1 + 1).toInt();
+    int sep = cmd.indexOf(':', 11);
+    String uid = cmd.substring(11, sep);
+    int folder = cmd.substring(sep + 1).toInt();
     
-    String key = "tag_" + tagUID;
+    String key = "tag_" + uid;
     preferences.putInt(key.c_str(), folder);
     
     SerialBT.print("Associated ");
-    SerialBT.print(tagUID);
+    SerialBT.print(uid);
     SerialBT.print(" to folder ");
     SerialBT.println(folder);
   }
   else if (cmd == "STATUS") {
+    float voltage = readBatteryVoltage();
+    int battery = getBatteryPercentage(voltage);
+    
     SerialBT.print("Volume:");
     SerialBT.print(currentVolume);
     SerialBT.print(",Playing:");
-    SerialBT.println(isPlaying ? "1" : "0");
+    SerialBT.print(isPlaying ? "1" : "0");
+    SerialBT.print(",Battery:");
+    SerialBT.println(battery);
+  }
+  else if (cmd == "BATTERY") {
+    float voltage = readBatteryVoltage();
+    int percent = getBatteryPercentage(voltage);
+    SerialBT.print("BATTERY:");
+    SerialBT.print(voltage);
+    SerialBT.print("V,");
+    SerialBT.print(percent);
+    SerialBT.println("%");
   }
 }
 ```
 
-### Upload del Codice
+---
 
-1. Collegare ESP32 via USB
-2. Tools → Board → ESP32 Dev Module
-3. Tools → Port → (selezionare porta COM/ttyUSB)
-4. Tools → Upload Speed → 115200
-5. Sketch → Upload
-6. Aprire Serial Monitor (115200 baud) per verificare output
+## 🔌 USB-C DUAL MODE
+
+### La Domanda
+**Posso usare la stessa porta USB-C per ricarica E trasferimento dati?**
+
+### La Risposta: SÌ (con limitazioni)
+
+#### Opzione 1: USB Switch Board con CH340G (Avanzata)
+
+**Componente**: Modulo con CH340G + Auto-Switch  
+**Costo**: €6
+
+**Come funziona**:
+```
+USB-C ──> [CH340G + Switch] ──┬──> ESP32 UART (dati)
+                               └──> TP4056 (ricarica)
+```
+
+**Logica**: 
+- PC con driver → modalità dati
+- Caricatore → modalità ricarica
+
+#### Opzione 2: Due Porte USB-C (CONSIGLIATA per semplicità)
+
+- **USB-C principale**: TP4056 ricarica (sempre accessibile)
+- **USB-C secondaria**: ESP32 dati (nascosta/sportellino interno)
+
+#### Opzione 3: Slot MicroSD Estraibile (LA PIÙ SEMPLICE)
+
+**✅ RACCOMANDATA per prima versione:**
+- USB-C → solo ricarica
+- MicroSD → slot esterno estraibile
+- Programmazione ESP32 → via micro-USB temporaneo del DevKit
+
+**Gestione file audio**:
+1. Spegnere dispositivo
+2. Estrarre microSD
+3. Inserire in lettore PC
+4. Copiare file MP3
+5. Reinserire microSD
 
 ---
 
@@ -713,204 +711,81 @@ void handleBluetoothCommand(String cmd) {
 
 ### Organizzazione MicroSD
 
-Il DFPlayer richiede una struttura precisa:
-
 ```
 📁 SD Card (FAT32)
 │
-├── 📁 01/                    ← Cartella 1: Fiabe della buonanotte
+├── 📁 01/              ← Fiabe
 │   ├── 001.mp3
 │   ├── 002.mp3
 │   └── 003.mp3
 │
-├── 📁 02/                    ← Cartella 2: Canzoni allegre
-│   ├── 001.mp3
-│   ├── 002.mp3
-│   └── 003.mp3
-│
-├── 📁 03/                    ← Cartella 3: Musica classica
+├── 📁 02/              ← Canzoni
 │   ├── 001.mp3
 │   └── 002.mp3
 │
-├── 📁 mp3/                   ← File singoli (opzionale)
-│   ├── 0001.mp3              ← Suono di errore
-│   └── 0002.mp3
+├── 📁 03/              ← Classica
+│   └── 001.mp3
 │
-└── 📁 advert/                ← Annunci (opzionale)
-    ├── 0001.mp3
-    └── 0002.mp3
+└── 📁 mp3/             ← File singoli
+    └── 9999.mp3        ← Suono errore
 ```
 
 ### Regole di Nomenclatura
 
-**IMPORTANTE**: Il DFPlayer è molto esigente con i nomi dei file:
+1. **Cartelle**: `01`, `02`, `03`... (2 cifre)
+2. **File**: `001.mp3`, `002.mp3`... (3 cifre)
+3. **NO spazi o caratteri speciali**
+4. **Formato**: MP3 128-320kbps
 
-1. **Cartelle numerate**: `01`, `02`, `03`, ... `99` (sempre 2 cifre)
-2. **File numerati**: `001.mp3`, `002.mp3`, ... `999.mp3` (sempre 3 cifre)
-3. **NO spazi** nei nomi
-4. **NO caratteri speciali** (accenti, simboli)
-5. **Formato audio**: MP3 (128-320kbps), WAV (16bit, 44.1kHz)
-
-### Esempio di Associazione Tag NFC
+### Esempio Associazione Tag
 
 ```
-Tag Blu (#04A1B2C3)    → Cartella 01 → Fiabe della buonanotte
-Tag Rosso (#05C3D4E5)  → Cartella 02 → Canzoni allegre
-Tag Verde (#06E5F6A7)  → Cartella 03 → Musica classica
-Tag Giallo (#07A8B9C0) → Cartella 04 → Ninna nanne
-Tag Viola (#08D1E2F3)  → Cartella 05 → Suoni della natura
+Tag Blu    (#04A1B2C3) → Cartella 01 (Fiabe)
+Tag Rosso  (#05C3D4E5) → Cartella 02 (Canzoni)
+Tag Verde  (#06E5F6A7) → Cartella 03 (Classica)
 ```
-
-### Preparazione File Audio
-
-**Tool consigliati**:
-- **Audacity** (gratuito): conversione, taglio, normalizzazione
-- **fre:ac** (gratuito): conversione batch
-
-**Procedura**:
-1. Convertire tutti i file in MP3 128-192kbps
-2. Normalizzare volume a -3dB (evita clipping)
-3. Rinominare con numerazione corretta
-4. Copiare su microSD formattata FAT32
-5. **Espellere correttamente** la scheda
 
 ---
 
 ## 📦 COSTRUZIONE SCATOLA
 
-### Materiali e Dimensioni
+### Dimensioni: 15cm x 10cm x 5cm
 
-**Dimensioni consigliate**: 15cm x 10cm x 5cm (L x P x H)
+### Foratura Pannello Frontale
 
-**Componenti legno**:
-- 2 pannelli 15x10cm (fronte/retro)
-- 2 pannelli 15x5cm (lati lunghi)
-- 2 pannelli 10x5cm (lati corti)
-- 1 base interna 13x8cm (per fissare componenti)
+**3 fori 30mm** (pulsanti):
+- Spaziatura 35mm tra centri
+- 3cm dal bordo superiore
 
-### Schema di Taglio
+**1 foro 8mm** (potenziometro):
+- Lato destro, 25mm dal bordo
 
-```
-Vista esplosa della scatola:
+**1 foro 60mm** (speaker):
+- Angolo alto destra
+- 20mm dal bordo, 15mm dall'alto
 
-        ┌─────────────────┐
-        │   PANNELLO      │  15x10cm (fronte)
-        │   FRONTALE      │  
-        │  ●●●●●  ◉      │  ← Pulsanti + speaker
-        └─────────────────┘
+**1 foro 5mm** (LED):
+- Angolo alto sinistra
+- 10mm dai bordi
 
-┌───────┐                 ┌───────┐
-│ LATO  │                 │ LATO  │  15x5cm
-│ SX    │                 │ DX    │
-└───────┘                 └───────┘
+### Foratura Pannello Posteriore
 
-        ┌─────────────────┐
-        │  BASE INTERNA   │  13x8cm
-        │  (componenti)   │  
-        └─────────────────┘
+- **Slot microSD**: 15x2mm, 30mm da sinistra
+- **USB-C**: 10x4mm, centro
+- **Switch**: 12mm, 60mm da sinistra
 
-┌───────┐                 ┌───────┐
-│ LATO  │                 │ LATO  │  10x5cm
-│ TOP   │                 │ BOTTOM│
-└───────┘                 └───────┘
+### Assemblaggio
 
-        ┌─────────────────┐
-        │   PANNELLO      │  15x10cm (retro)
-        │   POSTERIORE    │  ← USB-C + Switch
-        └─────────────────┘
-```
-
-### Procedura di Costruzione
-
-#### FASE 1: Foratura Pannello Frontale
-
-**Pulsanti** (5 fori da 30mm):
-```
-Disposizione (vista dall'alto):
-
-    25mm     25mm    25mm    25mm    25mm
-  ┌──●───────●───────●───────●───────●──┐
-  │ PLAY   VOL+   VOL-   NEXT   PREV    │
-  │                                      │
-  │         3cm dal bordo superiore      │
-  └──────────────────────────────────────┘
-  
-  Spaziatura orizzontale: 25mm tra centri
-```
-
-**Speaker** (1 foro da 60mm):
-- Posizione: angolo alto a destra
-- 20mm dal bordo destro
-- 15mm dal bordo superiore
-
-**Strumenti**:
-- Fresa a tazza da 30mm per pulsanti
-- Fresa a tazza da 60mm per speaker
-- Carta vetrata per rifinire
-
-#### FASE 2: Foratura Pannello Posteriore
-
-**USB-C** (foro rettangolare 10x4mm):
-- 30mm dal bordo sinistro
-- Al centro in altezza
-
-**Switch ON/OFF** (foro da 12mm):
-- 60mm dal bordo sinistro
-- Al centro in altezza
-
-**LED di stato** (foro da 5mm):
-- 50mm dal bordo sinistro
-- 10mm sopra lo switch
-
-#### FASE 3: Assemblaggio Scatola
-
-1. **Levigare tutti i bordi** con carta vetrata grana 120
-2. **Pre-assemblaggio a secco** per verificare combaciamento
-3. **Incollaggio**:
-   - Colla vinilica per legno sui bordi
-   - Chiodini sottili (15mm) per rinforzo
-   - Morsetti per 2-4 ore
-4. **Finitura**:
-   - Carta vetrata grana 220 su tutta la superficie
-   - Arrotondare angoli e spigoli
-5. **Verniciatura** (opzionale):
-   - 2 mani di vernice acrilica atossica
-   - Asciugatura 24h tra le mani
-   - Finitura con cera d'api
-
-#### FASE 4: Montaggio Base Interna
-
-```
-Vista dall'alto base interna (13x8cm):
-
-┌─────────────────────────────────────┐
-│  [ESP32]          [DFPlayer+SD]     │
-│   con distanziali   con distanziali │
-│                                     │
-│  [TP4056]          [MT3608]         │
-│   colla a caldo    colla a caldo    │
-│                                     │
-│        [Batteria 18650]             │
-│        con supporto/velcro          │
-│                                     │
-│  [PN532]           [PAM8403]        │
-│  sotto pulsanti    vicino speaker   │
-└─────────────────────────────────────┘
-```
-
-**Fissaggio**:
-1. ESP32 e DFPlayer: 4 viti M3 con distanziali 10mm
-2. Altri moduli: colla a caldo (rimovibile con calore)
-3. Batteria: supporto in plastica o velcro industriale
-4. Base interna fissata alla scatola con 4 viti dal basso
+1. Levigare bordi
+2. Pre-assemblaggio a secco
+3. Incollaggio con colla vinilica
+4. Chiodini rinforzo
+5. Finitura carta vetrata
+6. Verniciatura opzionale
 
 ---
 
 ## 📱 APP BLUETOOTH
-
-### Architettura dell'App
-
-L'app comunica con ESP32 via Bluetooth Serial (SPP) usando comandi testuali o JSON.
 
 ### Protocollo Comunicazione
 
@@ -920,496 +795,552 @@ L'app comunica con ESP32 via Bluetooth Serial (SPP) usando comandi testuali o JS
 |---------|---------|-------------|
 | Play | `PLAY` | Avvia riproduzione |
 | Pausa | `PAUSE` | Mette in pausa |
-| Volume | `VOL:15` | Imposta volume (0-30) |
+| Volume | `VOL:15` | Imposta volume (0-25) |
 | Cartella | `FOLDER:2` | Riproduce cartella 2 |
-| Traccia | `TRACK:5` | Riproduce traccia 5 |
-| Associa Tag | `ASSOCIATE:04A1B2:3` | Associa tag a cartella 3 |
-| Stato | `STATUS` | Richiede stato attuale |
-| Scansione NFC | `SCAN_NFC` | Attiva modalità lettura tag |
-| Lista Tag | `LIST_TAGS` | Elenca tag memorizzati |
+| Associa Tag | `ASSOCIATE:04A1B2C3:1` | Associa tag a cartella |
+| Stato | `STATUS` | Richiede stato corrente |
+| Batteria | `BATTERY` | Richiede stato batteria |
 
-#### Risposte dall'ESP32 all'App
+#### Risposte dall'ESP32
 
 ```
-OK                           ← Comando eseguito
-ERROR:messaggio              ← Errore
-STATUS:vol=15,playing=1      ← Stato corrente
-TAG_DETECTED:04A1B2C3        ← Tag NFC letto
-TAG_LIST:04A1B2:1,05C3D4:2   ← Lista associazioni
+OK
+ERROR:messaggio
+STATUS:Volume:15,Playing:1,Battery:85
+TAG_DETECTED:04A1B2C3
+BATTERY:3.8V,75%
 ```
 
-### Codice ESP32 Aggiornato (Gestione Upload File)
+### App Flutter Completa
 
-**NOTA**: L'ESP32 non può scrivere direttamente sulla microSD del DFPlayer, ma può:
-1. Ricevere file via Bluetooth
-2. Salvarli in SPIFFS/LittleFS (4MB flash)
-3. Istruire l'utente a copiarli su SD
+**File: pubspec.yaml**
 
-```cpp
-// Aggiungi all'inizio del codice principale:
-#include <SPIFFS.h>
+```yaml
+name: music_player_app
+description: Lettore Musicale NFC Controller
+version: 1.0.0
 
-// In setup():
-void setup() {
-  // ... codice esistente ...
-  
-  if (!SPIFFS.begin(true)) {
-    Serial.println("Errore SPIFFS");
-  } else {
-    Serial.println("SPIFFS OK");
-  }
-}
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bluetooth_serial: ^0.4.0
 
-// Nuova funzione per ricevere file:
-void receiveAudioFile() {
-  if (SerialBT.available() < 4) return;
-  
-  // Protocollo: FILE:filename.mp3:SIZE:12345\n[dati binari]
-  String header = SerialBT.readStringUntil('\n');
-  
-  if (header.startsWith("FILE:")) {
-    int sep1 = header.indexOf(':', 5);
-    int sep2 = header.indexOf(':', sep1 + 1);
-    
-    String filename = header.substring(5, sep1);
-    int fileSize = header.substring(sep2 + 1).toInt();
-    
-    Serial.print("Ricevo file: ");
-    Serial.print(filename);
-    Serial.print(" - ");
-    Serial.print(fileSize);
-    Serial.println(" bytes");
-    
-    File file = SPIFFS.open("/" + filename, FILE_WRITE);
-    
-    int received = 0;
-    uint8_t buffer[512];
-    
-    while (received < fileSize) {
-      int toRead = min(512, fileSize - received);
-      int actualRead = SerialBT.readBytes(buffer, toRead);
-      file.write(buffer, actualRead);
-      received += actualRead;
-      
-      // Invia progresso
-      if (received % 5000 == 0) {
-        SerialBT.print("PROGRESS:");
-        SerialBT.println((received * 100) / fileSize);
-      }
-    }
-    
-    file.close();
-    SerialBT.println("FILE_COMPLETE");
-    Serial.println("File ricevuto!");
-    
-    // Istruzioni per l'utente
-    SerialBT.println("INFO:Copia il file su microSD nella cartella corretta");
-  }
-}
-
-// Aggiungi in loop():
-void loop() {
-  checkButtons();
-  checkNFC();
-  checkBluetooth();
-  receiveAudioFile(); // ← Nuova funzione
-  delay(50);
-}
+flutter:
+  uses-material-design: true
 ```
 
-### Struttura App Mobile (React Native / Flutter)
+**File: android/app/src/main/AndroidManifest.xml**
 
-**Schermata Principale**:
-```
-┌────────────────────────────────────┐
-│  🔊 Lettore Musicale                │
-│                                    │
-│  ┌──────────────┐                 │
-│  │ Connesso ●   │  [Disconnetti] │
-│  └──────────────┘                 │
-│                                    │
-│  ━━━━━━━━━━━━━  Volume: 15/30     │
-│  [−]         [━━━━━━━━━━]      [+]│
-│                                    │
-│  ▶ PLAY    ⏸ PAUSE    ⏹ STOP     │
-│  ⏮ PREV    ⏭ NEXT                 │
-│                                    │
-│  📂 CARTELLE:                      │
-│  ┌────────────────────────────────┐│
-│  │ 📁 01 - Fiabe      [▶]        ││
-│  │ 📁 02 - Canzoni    [▶]        ││
-│  │ 📁 03 - Classica   [▶]        ││
-│  │ 📁 04 - Ninna nanne [▶]       ││
-│  └────────────────────────────────┘│
-│                                    │
-│  [📋 Gestione Tag NFC]             │
-│  [⬆ Carica File Audio]            │
-└────────────────────────────────────┘
+Aggiungi questi permessi dentro `<manifest>`:
+
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 ```
 
-**Schermata Gestione Tag NFC**:
-```
-┌────────────────────────────────────┐
-│  ← Gestione Tag NFC                │
-│                                    │
-│  🔍 SCANSIONE TAG:                 │
-│  ┌────────────────────────────────┐│
-│  │                                ││
-│  │    Avvicina un tag NFC...     ││
-│  │                                ││
-│  │         📡                     ││
-│  └────────────────────────────────┘│
-│                                    │
-│  TAG MEMORIZZATI:                  │
-│  ┌────────────────────────────────┐│
-│  │ 🔵 Tag Blu                     ││
-│  │    ID: 04A1B2C3                ││
-│  │    → Cartella 01 (Fiabe)       ││
-│  │    [✏ Modifica] [🗑 Elimina]   ││
-│  │                                ││
-│  │ 🔴 Tag Rosso                   ││
-│  │    ID: 05C3D4E5                ││
-│  │    → Cartella 02 (Canzoni)     ││
-│  │    [✏ Modifica] [🗑 Elimina]   ││
-│  └────────────────────────────────┘│
-│                                    │
-│  [+ Associa Nuovo Tag]             │
-└────────────────────────────────────┘
-```
-
-### Codice App di Esempio (Flutter)
+**File: lib/main.dart**
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
-class MusicPlayerApp extends StatefulWidget {
+void main() => runApp(MusicPlayerApp());
+
+class MusicPlayerApp extends StatelessWidget {
   @override
-  _MusicPlayerAppState createState() => _MusicPlayerAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Lettore Musicale',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        brightness: Brightness.light,
+      ),
+      home: MusicPlayerHome(),
+    );
+  }
 }
 
-class _MusicPlayerAppState extends State<MusicPlayerApp> {
+class MusicPlayerHome extends StatefulWidget {
+  @override
+  _MusicPlayerHomeState createState() => _MusicPlayerHomeState();
+}
+
+class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   BluetoothConnection? connection;
+  bool isConnected = false;
   int volume = 15;
+  int batteryPercent = 100;
   bool isPlaying = false;
   String lastTag = "";
+  List<BluetoothDevice> devices = [];
 
-  void connectBluetooth() async {
+  @override
+  void initState() {
+    super.initState();
+    _getDevices();
+  }
+
+  void _getDevices() async {
+    List<BluetoothDevice> bondedDevices = 
+        await FlutterBluetoothSerial.instance.getBondedDevices();
+    setState(() {
+      devices = bondedDevices;
+    });
+  }
+
+  void connectToDevice(BluetoothDevice device) async {
     try {
-      connection = await BluetoothConnection.toAddress("XX:XX:XX:XX:XX:XX");
-      connection!.input!.listen((data) {
-        String response = String.fromCharCodes(data);
-        handleResponse(response);
+      connection = await BluetoothConnection.toAddress(device.address);
+      setState(() {
+        isConnected = true;
       });
+      
+      connection!.input!.listen((Uint8List data) {
+        String response = ascii.decode(data);
+        _handleResponse(response);
+      }).onDone(() {
+        setState(() {
+          isConnected = false;
+        });
+      });
+      
+      _sendCommand("STATUS");
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Connesso a ${device.name}')),
+      );
     } catch (e) {
-      print("Errore connessione: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore di connessione')),
+      );
     }
   }
 
-  void sendCommand(String cmd) {
+  void _sendCommand(String cmd) {
     if (connection != null && connection!.isConnected) {
       connection!.output.add(ascii.encode(cmd + "\n"));
     }
   }
 
-  void handleResponse(String response) {
+  void _handleResponse(String response) {
     if (response.startsWith("TAG_DETECTED:")) {
       setState(() {
-        lastTag = response.substring(13);
+        lastTag = response.substring(13).trim();
       });
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text("Tag NFC Rilevato"),
-          content: Text("UID: $lastTag\n\nAssocia a quale cartella?"),
-          actions: [
-            TextButton(
-              child: Text("Cartella 1"),
-              onPressed: () {
-                sendCommand("ASSOCIATE:$lastTag:1");
-                Navigator.pop(context);
-              },
-            ),
-            // Altri pulsanti...
-          ],
-        ),
-      );
+      _showTagDialog();
+    }
+    else if (response.startsWith("STATUS:")) {
+      var parts = response.substring(7).split(',');
+      for (var part in parts) {
+        if (part.startsWith("Volume:")) {
+          setState(() {
+            volume = int.tryParse(part.split(':')[1]) ?? 15;
+          });
+        }
+        else if (part.startsWith("Playing:")) {
+          setState(() {
+            isPlaying = part.split(':')[1] == "1";
+          });
+        }
+        else if (part.startsWith("Battery:")) {
+          setState(() {
+            batteryPercent = int.tryParse(part.split(':')[1]) ?? 100;
+          });
+        }
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Lettore Musicale")),
-      body: Column(
-        children: [
-          // Volume slider
-          Slider(
-            value: volume.toDouble(),
-            min: 0,
-            max: 30,
-            divisions: 30,
-            onChanged: (val) {
-              setState(() => volume = val.toInt());
-              sendCommand("VOL:$volume");
-            },
-          ),
-          
-          // Pulsanti controllo
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                iconSize: 64,
-                onPressed: () {
-                  sendCommand(isPlaying ? "PAUSE" : "PLAY");
-                  setState(() => isPlaying = !isPlaying);
-                },
-              ),
-              IconButton(
-                icon: Icon(Icons.skip_previous),
-                iconSize: 48,
-                onPressed: () => sendCommand("PREV"),
-              ),
-              IconButton(
-                icon: Icon(Icons.skip_next),
-                iconSize: 48,
-                onPressed: () => sendCommand("NEXT"),
-              ),
-            ],
-          ),
-          
-          // Lista cartelle
-          Expanded(
-            child: ListView.builder(
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: Icon(Icons.folder),
-                  title: Text("Cartella ${index + 1}"),
-                  trailing: IconButton(
-                    icon: Icon(Icons.play_circle),
-                    onPressed: () => sendCommand("FOLDER:${index + 1}"),
-                  ),
+  void _showTagDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Tag NFC Rilevato"),
+        content: Text("UID: $lastTag\n\nAssocia a quale cartella?"),
+        actions: [
+          for (int i = 1; i <= 5; i++)
+            TextButton(
+              child: Text("Cartella $i"),
+              onPressed: () {
+                _sendCommand("ASSOCIATE:$lastTag:$i");
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Tag associato a cartella $i')),
                 );
               },
             ),
-          ),
-          
-          // Pulsanti gestione
-          ElevatedButton(
-            child: Text("Gestione Tag NFC"),
-            onPressed: () {
-              sendCommand("SCAN_NFC");
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NFCManagementScreen()),
-              );
-            },
+          TextButton(
+            child: Text("Annulla"),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
     );
   }
+
+  void _showDeviceSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Seleziona Dispositivo"),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: devices.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(devices[index].name ?? "Sconosciuto"),
+                subtitle: Text(devices[index].address),
+                onTap: () {
+                  Navigator.pop(context);
+                  connectToDevice(devices[index]);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Lettore Musicale"),
+        actions: [
+          if (!isConnected)
+            IconButton(
+              icon: Icon(Icons.bluetooth),
+              onPressed: _showDeviceSelector,
+            ),
+        ],
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Stato connessione
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                  color: isConnected ? Colors.blue : Colors.grey,
+                ),
+                title: Text(isConnected ? "Connesso" : "Non connesso"),
+                trailing: isConnected
+                    ? TextButton(
+                        child: Text("Disconnetti"),
+                        onPressed: () {
+                          connection?.dispose();
+                          setState(() {
+                            isConnected = false;
+                          });
+                        },
+                      )
+                    : null,
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Batteria
+            Card(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.battery_full, 
+                         color: batteryPercent > 20 ? Colors.green : Colors.red),
+                    SizedBox(width: 8),
+                    Text("Batteria: $batteryPercent%", 
+                         style: TextStyle(fontSize: 16)),
+                    Spacer(),
+                    if (isConnected)
+                      IconButton(
+                        icon: Icon(Icons.refresh),
+                        onPressed: () => _sendCommand("BATTERY"),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Volume
+            Card(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text("Volume: $volume/25", style: TextStyle(fontSize: 18)),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.remove),
+                          onPressed: () {
+                            if (volume > 0) {
+                              setState(() => volume--);
+                              _sendCommand("VOL:$volume");
+                            }
+                          },
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: volume.toDouble(),
+                            min: 0,
+                            max: 25,
+                            divisions: 25,
+                            onChanged: (val) {
+                              setState(() => volume = val.toInt());
+                            },
+                            onChangeEnd: (val) {
+                              _sendCommand("VOL:${val.toInt()}");
+                            },
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.add),
+                          onPressed: () {
+                            if (volume < 25) {
+                              setState(() => volume++);
+                              _sendCommand("VOL:$volume");
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Controlli playback
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.skip_previous),
+                  iconSize: 48,
+                  onPressed: () => _sendCommand("PREV"),
+                ),
+                IconButton(
+                  icon: Icon(isPlaying ? Icons.pause_circle_filled 
+                                        : Icons.play_circle_filled),
+                  iconSize: 64,
+                  color: Colors.blue,
+                  onPressed: () {
+                    _sendCommand(isPlaying ? "PAUSE" : "PLAY");
+                    setState(() => isPlaying = !isPlaying);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.skip_next),
+                  iconSize: 48,
+                  onPressed: () => _sendCommand("NEXT"),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Lista cartelle
+            Text("Cartelle:", 
+                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: ListView.builder(
+                itemCount: 5,
+                itemBuilder: (context, index) {
+                  return Card(
+                    child: ListTile(
+                      leading: Icon(Icons.folder, color: Colors.amber),
+                      title: Text("Cartella ${index + 1}"),
+                      trailing: IconButton(
+                        icon: Icon(Icons.play_circle_outline),
+                        onPressed: () => _sendCommand("FOLDER:${index + 1}"),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Pulsante gestione tag
+            ElevatedButton.icon(
+              icon: Icon(Icons.nfc),
+              label: Text("Gestione Tag NFC"),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+              ),
+              onPressed: () {
+                _sendCommand("SCAN_NFC");
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Avvicina un tag NFC al dispositivo')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    connection?.dispose();
+    super.dispose();
+  }
 }
+```
+
+### Compilazione App
+
+```bash
+# Installare dipendenze
+flutter pub get
+
+# Eseguire in debug
+flutter run
+
+# Build release per Android
+flutter build apk --release
 ```
 
 ### Alternative Semplificate
 
-Se non vuoi sviluppare un'app custom, puoi usare:
-
-1. **Serial Bluetooth Terminal** (Android/iOS gratuita)
+1. **Serial Bluetooth Terminal** (app gratuita)
    - Invia comandi testuali direttamente
-   - Ricevi risposte in tempo reale
+   - Perfetta per testing
 
-2. **MIT App Inventor** (online, drag & drop)
+2. **MIT App Inventor**
    - Crea app senza codice
-   - Componenti Bluetooth già pronti
-
-3. **Web Bluetooth API** (Chrome mobile)
-   - App web che si connette via Bluetooth
-   - Nessuna installazione richiesta
+   - Drag & drop
 
 ---
 
 ## 🔍 TESTING E TROUBLESHOOTING
 
-### Checklist Test Completa
+### Checklist Test
 
 #### ✅ Test 1: Alimentazione
-
-**Procedura**:
-1. Staccare ESP32 e tutti i moduli
-2. Collegare solo batteria → TP4056 → MT3608
-3. Misurare output MT3608: deve essere 5.0V ± 0.1V
-4. Collegare carico (LED + resistenza 220Ω)
-5. Misurare corrente: batteria deve erogare >500mA
-
-**Problemi comuni**:
-- Output MT3608 instabile → verificare saldature, regolare potenziometro
-- Batteria si scarica velocemente → verificare consumo moduli, controllare cortocircuiti
+1. Solo batteria → TP4056 → MT3608
+2. Output deve essere 5.0V ± 0.1V
+3. Corrente >500mA sotto carico
 
 #### ✅ Test 2: ESP32
-
-**Procedura**:
-1. Collegare solo ESP32 a 5V
-2. Caricare sketch di test con Serial.println()
-3. Verificare output su Serial Monitor
-4. Testare ogni GPIO con LED
-
-**Problemi comuni**:
-- ESP32 non si connette → premere BOOT durante upload
-- Reset continui → alimentazione insufficiente, aggiungere condensatore 100µF
+1. Collegare via USB
+2. Caricare sketch test
+3. Verificare Serial Monitor
+4. Testare GPIO con LED
 
 #### ✅ Test 3: DFPlayer
-
-**Procedura**:
-1. Inserire microSD con file test (001.mp3, 002.mp3)
-2. Collegare speaker direttamente a SPK_1/SPK_2
+1. MicroSD con file test
+2. Collegare speaker a SPK_1/SPK_2
 3. Alimentare a 5V
-4. Dovrebbe riprodurre automaticamente prima traccia
-
-**Problemi comuni**:
-- Nessun audio → verificare formato file (MP3 128kbps), nome file (001.mp3)
-- Audio distorto → verificare impedenza speaker (4Ω), ridurre volume
-- Non legge SD → formattare FAT32, max 32GB, classe 10
+4. Deve riprodurre automaticamente
 
 #### ✅ Test 4: NFC
-
-**Procedura**:
-1. Configurare PN532 in modalità I2C (jumper)
-2. Collegare a ESP32 (SDA, SCL, 3.3V!, GND)
-3. Caricare esempio Adafruit_PN532
-4. Avvicinare tag NTAG215
-
-**Problemi comuni**:
-- Non rileva tag → verificare jumper I2C, controllare alimentazione 3.3V (NO 5V!)
-- Lettura intermittente → avvicinare tag <3cm, aggiungere condensatore 10µF su VCC
+1. Jumper I2C (CH1=OFF, CH2=ON)
+2. Collegare a 3.3V (NON 5V!)
+3. Testare con tag NTAG215
 
 #### ✅ Test 5: Bluetooth
-
-**Procedura**:
-1. Caricare sketch con SerialBT.begin("LettoreMusicale")
-2. Cercare dispositivo su smartphone
-3. Connettere e inviare comando "STATUS"
+1. Cercare "LettoreMusicale"
+2. Connettere
+3. Inviare "STATUS"
 4. Verificare risposta
 
-**Problemi comuni**:
-- Non visibile → verificare nome dispositivo, riavviare ESP32
-- Disconnessioni → ridurre distanza, verificare alimentazione stabile
-
 #### ✅ Test 6: Sistema Completo
+Prima di chiudere la scatola:
+- Testare ogni pulsante
+- Testare NFC con 3-4 tag
+- Riprodurre audio 5 minuti a volume max
+- Verificare temperatura (<60°C)
+- Testare ricarica
+- Misurare autonomia (almeno 2 ore)
 
-**Procedura**:
-1. Assembrare tutto nella scatola (non chiudere ancora)
-2. Accendere con batteria
-3. Testare sequenza:
-   - Avvio automatico (LED acceso)
-   - Lettura tag NFC (suono avvio)
-   - Pulsanti (play, volume, next/prev)
-   - App Bluetooth (connessione, comandi)
-4. Misurare autonomia: almeno 5 ore
+### Problemi Comuni
 
-### Problemi Comuni e Soluzioni
+| Problema | Causa | Soluzione |
+|----------|-------|-----------|
+| ESP32 si riavvia | Alimentazione insufficiente | Condensatore 470µF su 5V |
+| Audio distorto | Speaker sbagliato | Usare 4Ω, non 8Ω |
+| NFC non legge | 5V invece di 3.3V | Collegare a 3.3V! |
+| Batteria dura poco | Consumo eccessivo | Ridurre volume max |
+| MicroSD non letta | Formato sbagliato | FAT32, non exFAT |
+| Bluetooth disconnette | Interferenze WiFi | `WiFi.mode(WIFI_OFF)` |
 
-| Problema | Causa Probabile | Soluzione |
-|----------|-----------------|-----------|
-| ESP32 si riavvia | Alimentazione insufficiente | Aggiungere condensatore 470µF su 5V |
-| Audio distorto | Impedenza speaker sbagliata | Usare speaker 4Ω, non 8Ω |
-| NFC non legge | Alimentazione 5V invece di 3.3V | Collegare PN532 a pin 3.3V ESP32 |
-| Batteria dura poco | Consumo eccessivo PAM8403 | Ridurre volume massimo via software |
-| Tag non riconosciuti | Memoria piena | Usare Preferences con namespace |
-| MicroSD non letta | Formato sbagliato | Formattare FAT32, non exFAT |
-| Bluetooth disconnette | Interferenze WiFi | Disabilitare WiFi: `WiFi.mode(WIFI_OFF)` |
+### Ottimizzazioni
 
-### Ottimizzazioni Finali
-
-**Ridurre consumo energetico**:
+**Ridurre consumo**:
 ```cpp
-// Aggiungi in setup():
-setCpuFrequencyMhz(80); // Riduce da 240MHz a 80MHz
-WiFi.mode(WIFI_OFF);     // Disabilita WiFi
-
-// Aggiungi in loop() quando non riproduce:
-if (!isPlaying) {
-  delay(500); // Rallenta loop
-}
+setCpuFrequencyMhz(80);  // -40% consumo
+WiFi.mode(WIFI_OFF);
 ```
 
-**Migliorare qualità audio**:
+**Migliorare audio**:
 ```cpp
-// In setup():
-dfPlayer.EQ(DFPLAYER_EQ_BASS);     // Più bassi
-dfPlayer.outputDevice(DFPLAYER_DEVICE_SD); // Forza SD
+dfPlayer.EQ(DFPLAYER_EQ_BASS);
 ```
 
-**Protezione volume per bambini**:
+**Calibrazione potenziometro**:
 ```cpp
-const int MAX_SAFE_VOLUME = 20; // Limita a 20/30
-
-void setVolume(int vol) {
-  vol = constrain(vol, 0, MAX_SAFE_VOLUME);
-  dfPlayer.volume(vol);
-}
+// Eliminare zone morte
+rawValue = constrain(rawValue, 200, 3895);
+volume = map(rawValue, 200, 3895, 0, MAX_SAFE_VOLUME);
 ```
 
 ---
 
 ## 🚀 MIGLIORAMENTI FUTURI
 
-### Funzionalità Avanzate
-
-1. **Sleep Mode**: Spegnimento automatico dopo 10 minuti di inattività
-2. **Timer**: "Tra 20 minuti spegni musica" (per addormentamento)
-3. **Sequenze**: Tag speciale che riproduce playlist mista
-4. **Registrazione**: Microfono per registrare messaggi vocali
-5. **WiFi Sync**: Sincronizza playlist con cloud via WiFi
-6. **Display OLED**: Mostra titolo traccia e volume
-7. **Sensore di movimento**: Pausa automatica quando viene capovolto
-8. **Multi-lingua**: Supporto per audio in diverse lingue
+### Funzionalità Software
+- Sleep mode automatico (10 min inattività)
+- Timer spegnimento (per addormentamento)
+- Playlist sequenziali
+- Equalizzatore via app
 
 ### Hardware Opzionale
 
 | Componente | Funzione | Costo |
 |------------|----------|-------|
-| **Display OLED 0.96"** | Info traccia/volume | €5 |
-| **Microfono MAX4466** | Registrazione vocale | €4 |
-| **LED RGB WS2812** | Effetti luminosi | €3 |
-| **Sensore MPU6050** | Rilevamento movimento | €4 |
-| **Modulo RTC DS3231** | Timer e spegnimento programmato | €3 |
+| Display OLED 0.96" | Info traccia | €5 |
+| Microfono MAX4466 | Registrazione | €4 |
+| LED RGB WS2812 | Effetti luce | €3 |
+| MPU6050 | Sensore movimento | €4 |
+| RTC DS3231 | Timer programmato | €3 |
 
 ---
 
-## 📚 RISORSE E RIFERIMENTI
+## 📚 RISORSE
 
-### Documentazione Tecnica
+### Documentazione
+- ESP32: https://docs.espressif.com/
+- DFPlayer: https://wiki.dfrobot.com/DFPlayer_Mini_SKU_DFR0299
+- PN532: https://www.nxp.com/docs/en/user-guide/141520.pdf
 
-- **ESP32**: https://docs.espressif.com/projects/esp-idf/
-- **DFPlayer Mini**: https://wiki.dfrobot.com/DFPlayer_Mini_SKU_DFR0299
-- **PN532**: https://www.nxp.com/docs/en/user-guide/141520.pdf
-- **Arduino IDE**: https://docs.arduino.cc/
-
-### Librerie
-
-```cpp
-// In Arduino IDE → Manage Libraries:
+### Librerie Arduino
+```
 DFRobotDFPlayerMini v1.0.6+
 Adafruit_PN532 v1.4.0+
 ArduinoJson v6.21.0+
 ```
 
-### Community e Supporto
-
-- **Forum Arduino**: https://forum.arduino.cc/
-- **ESP32 Reddit**: https://www.reddit.com/r/esp32/
-- **Stack Overflow**: Tag `esp32`, `dfplayer`, `nfc`
-
-### Video Tutorial Consigliati
-
-1. "ESP32 DFPlayer Mini Tutorial" - YouTube
-2. "PN532 NFC Module with Arduino" - YouTube
-3. "Building a battery powered ESP32" - YouTube
+### Community
+- Forum Arduino: https://forum.arduino.cc/
+- ESP32 Reddit: https://www.reddit.com/r/esp32/
+- Stack Overflow: tag `esp32`, `dfplayer`, `nfc`
 
 ---
 
@@ -1417,34 +1348,37 @@ ArduinoJson v6.21.0+
 
 ### Cosa Hai Ottenuto
 
-✅ Un lettore musicale funzionale e robusto  
-✅ Controllo intuitivo tramite tag NFC colorati  
-✅ App Bluetooth per gestione avanzata  
-✅ Autonomia di 6-8 ore  
-✅ Sistema espandibile e personalizzabile  
-✅ Costo contenuto (~€100)  
+✅ Lettore musicale funzionale e robusto  
+✅ Controllo NFC con tag colorati  
+✅ Potenziometro analogico per volume  
+✅ LED bicolore stato batteria  
+✅ MicroSD estraibile  
+✅ App Flutter per gestione  
+✅ Autonomia 7-9 ore  
+✅ Costo ~€100  
 
 ### Prossimi Passi
 
-1. **Ordina i componenti** (vedi lista sopra)
-2. **Testa ogni modulo singolarmente** prima dell'assemblaggio finale
-3. **Assembla il prototipo** su breadboard
-4. **Carica il software** e verifica tutte le funzioni
-5. **Costruisci la scatola** e assembla definitivamente
-6. **Testa l'autonomia** con sessioni di 3-4 ore
-7. **Sviluppa l'app** (o usa Serial Terminal)
-8. **Personalizza** con adesivi, colori, nome del bambino
+1. **Ordinare componenti** (vedi lista)
+2. **Testare ogni modulo** singolarmente
+3. **Assemblare su breadboard**
+4. **Caricare software** e verificare
+5. **Costruire scatola**
+6. **Assemblare definitivamente**
+7. **Testare autonomia**
+8. **Sviluppare app**
+9. **Personalizzare**
 
 ### Supporto
 
-Per domande o problemi durante la realizzazione:
-- Condividi foto/video del setup
-- Copia l'output del Serial Monitor
-- Descrivi il comportamento anomalo
-
-**Buona costruzione! 🎵🔧**
+Per problemi durante la realizzazione:
+- Condividi foto/video setup
+- Copia output Serial Monitor
+- Descrivi comportamento anomalo
 
 ---
 
-*Documento creato per progetto Lettore Musicale NFC*  
-*Versione 1.0 - Novembre 2025*
+**Buona costruzione! 🎵🔧**
+
+*Documento v1.0 - Novembre 2025*
+*Progetto Lettore Musicale NFC per Bambini*
