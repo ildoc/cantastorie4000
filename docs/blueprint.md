@@ -26,7 +26,7 @@
 - **Controlli fisici**: 3 pulsanti arcade (Play/Pausa, Next, Prev) + Potenziometro volume
 - **App Bluetooth**: Gestione remota, associazione tag NFC
 - **MicroSD estraibile**: Slot esterno per facile aggiornamento contenuti
-- **Indicatore batteria**: LED bicolore per stato carica
+- **LED di stato**: LED bicolore per feedback visivo (boot, NFC, batteria, errori)
 - **Autonomia**: 7-9 ore di riproduzione continua
 - **Avvio rapido**: 2-3 secondi dall'accensione
 - **USB-C**: Ricarica batteria (+ opzionale trasferimento dati)
@@ -71,7 +71,7 @@
 | **Speaker** | 4Ω 3W, 50mm | 1 | €6 | Preferisci full-range |
 | **Pulsanti Arcade** | 30mm, colorati | 3 | €6 | Colori: Rosso, Giallo, Bianco |
 | **Potenziometro** | 10KΩ lineare con manopola | 1 | €3 | Per controllo volume |
-| **LED Bicolore** | 5mm rosso/verde catodo comune | 1 | €1 | Indicatore batteria |
+| **LED Bicolore** | 5mm rosso/verde catodo comune | 1 | €1 | LED di stato generico |
 | **MicroSD Extension** | Cavo adattatore 10-15cm | 1 | €4 | Slot esterno per SD |
 | **Tag NFC** | NTAG215 o NTAG213 | 10 | €8 | Adesivi o portachiavi |
 | **Resistori** | 100KΩ, 47KΩ, 220Ω (2x) | 4 | €1 | Per partitore tensione e LED |
@@ -188,7 +188,7 @@ Pin 2 (Wiper)  -> GPIO34 (ADC)
 Pin 3 (VCC)    -> 3.3V
 ```
 
-#### ESP32 ↔ LED Batteria
+#### ESP32 ↔ LED di Stato + Monitoraggio Batteria
 ```
 Partitore tensione:
 Batteria+ ──[100KΩ]──┬──> GPIO35 (ADC)
@@ -197,10 +197,16 @@ Batteria+ ──[100KΩ]──┬──> GPIO35 (ADC)
                      │
                     GND
 
-LED Bicolore:
+LED Bicolore (Stato):
 GPIO25 ──[220Ω]──> LED Rosso ──┐
 GPIO33 ──[220Ω]──> LED Verde ──┤
                                 ├──> GND (catodo comune)
+
+Funzioni LED:
+- Verde fisso: Sistema pronto (boot completato)
+- Verde lampeggiante rapido: Tag NFC letto con successo
+- Rosso lampeggiante: Batteria bassa o tag non associato
+- Rosso fisso: Batteria critica o errore
 ```
 
 #### DFPlayer ↔ PAM8403 ↔ Speaker
@@ -294,11 +300,23 @@ Un cavo a GPIO, uno a GND comune.
 - Giallo:  Wiper → GPIO34
 ```
 
-#### F. LED Batteria
+#### F. LED di Stato Bicolore
+```
+LED Bicolore (3 pin):
+Anodo Rosso  → GPIO25 via 220Ω
+Anodo Verde  → GPIO33 via 220Ω
+Catodo       → GND
+
+Funzione: LED di stato generico per feedback visivo
+- Boot completato
+- Lettura tag NFC
+- Errori sistema
+- Stato batteria
+```
+
+#### G. Partitore Tensione Batteria
 ```
 Partitore: 100KΩ + 47KΩ → GPIO35
-LED: Anodi via 220Ω → GPIO25/33
-Catodo → GND
 ```
 
 ### FASE 2: Test su Breadboard
@@ -399,7 +417,7 @@ const int TAG_DEBOUNCE = 2000;
 const int MAX_SAFE_VOLUME = 25;
 
 // Battery monitoring constants
-const float VOLTAGE_DIVIDER = 3.14;
+const float VOLTAGE_DIVIDER = 3.13;  // (100K+47K)/47K = 3.128 (approssimato)
 const float ADC_REFERENCE = 3.3;
 const float ADC_MAX = 4095.0;
 
@@ -416,10 +434,16 @@ void setup() {
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   
-  // LED test
+  // LED test sequenza
   digitalWrite(LED_GREEN, HIGH);
-  delay(500);
+  delay(300);
   digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_RED, HIGH);
+  delay(300);
+  digitalWrite(LED_RED, LOW);
+  
+  // Segnala boot completato: LED verde fisso
+  digitalWrite(LED_GREEN, HIGH);
   
   // Init DFPlayer
   DFSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
@@ -528,7 +552,6 @@ int getBatteryPercentage(float voltage) {
 
 void checkBattery() {
   static unsigned long lastCheck = 0;
-  static bool ledState = false;
   
   if (millis() - lastCheck > 30000) {
     float voltage = readBatteryVoltage();
@@ -540,18 +563,28 @@ void checkBattery() {
     Serial.print(percent);
     Serial.println("%)");
     
+    // Gestione LED di stato (vedi guida dettagliata per sistema completo)
     if (percent > 20) {
       digitalWrite(LED_GREEN, HIGH);
       digitalWrite(LED_RED, LOW);
-    } else {
-      digitalWrite(LED_GREEN, LOW);
+    } else if (percent > 10) {
+      // Batteria bassa: rosso lampeggiante
+      static bool ledState = false;
       ledState = !ledState;
+      digitalWrite(LED_GREEN, LOW);
       digitalWrite(LED_RED, ledState);
+    } else {
+      // Batteria critica: rosso fisso
+      digitalWrite(LED_GREEN, LOW);
+      digitalWrite(LED_RED, HIGH);
     }
     
     lastCheck = millis();
   }
 }
+
+// NOTA: Per un sistema completo di gestione LED di stato (boot, NFC, errori),
+// vedere la guida dettagliata in programmazione-microcontrollore.md
 
 void checkNFC() {
   uint8_t uid[7];
@@ -582,10 +615,28 @@ void handleNFCTag(String uid) {
   if (folder > 0) {
     Serial.print("Riproduzione cartella: ");
     Serial.println(folder);
+    
+    // Feedback LED: verde lampeggiante rapido (vedi guida dettagliata)
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(LED_GREEN, HIGH);
+      delay(100);
+      digitalWrite(LED_GREEN, LOW);
+      delay(100);
+    }
+    
     dfPlayer.loopFolder(folder);
     isPlaying = true;
   } else {
     Serial.println("Tag non associato");
+    
+    // Feedback LED: rosso lampeggiante rapido
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_RED, HIGH);
+      delay(150);
+      digitalWrite(LED_RED, LOW);
+      delay(150);
+    }
+    
     dfPlayer.playMp3Folder(9999);
   }
 }
@@ -1315,7 +1366,6 @@ volume = map(rawValue, 200, 3895, 0, MAX_SAFE_VOLUME);
 
 | Componente | Funzione | Costo |
 |------------|----------|-------|
-| Display OLED 0.96" | Info traccia | €5 |
 | Microfono MAX4466 | Registrazione | €4 |
 | LED RGB WS2812 | Effetti luce | €3 |
 | MPU6050 | Sensore movimento | €4 |
@@ -1351,7 +1401,7 @@ ArduinoJson v6.21.0+
 ✅ Lettore musicale funzionale e robusto  
 ✅ Controllo NFC con tag colorati  
 ✅ Potenziometro analogico per volume  
-✅ LED bicolore stato batteria  
+✅ LED bicolore di stato (boot, NFC, batteria, errori)  
 ✅ MicroSD estraibile  
 ✅ App Flutter per gestione  
 ✅ Autonomia 7-9 ore  
