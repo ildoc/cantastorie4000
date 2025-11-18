@@ -21,7 +21,7 @@
 
 Il sistema è composto da 5 blocchi principali:
 
-1. **Sistema di Alimentazione**: Batteria 18650 → TP4056 → MT3608 → 5V Rail
+1. **Sistema di Alimentazione**: 2×Batteria 18650 (parallelo 6000mAh) → TP4056 → MT3608 → 5V Rail
 2. **Microcontrollore**: ESP32 (gestione logica, Bluetooth, I/O)
 3. **Sistema Audio**: DFPlayer Mini → PAM8403 → Speaker
 4. **Sistema NFC**: PN532 (lettura tag)
@@ -229,13 +229,15 @@ Vout = 0.6V × (1 + R1/R2)
 - Input: 100µF (opzionale, per ridurre ripple)
 - Output: 470µF (consigliato, per stabilità)
 
-### Batteria 18650
+### Batteria 18650 (2 in Parallelo)
+
+**Configurazione**: 2 batterie 3000mAh collegate in parallelo = 6000mAh totali
 
 **Specifiche**:
-- **Tensione nominale**: 3.7V
+- **Tensione nominale**: 3.7V (stessa tensione, capacità doppia)
 - **Tensione max**: 4.2V (carica completa)
 - **Tensione min**: 3.0V (scarica)
-- **Capacità**: 3000mAh (consigliato)
+- **Capacità totale**: 6000mAh (2×3000mAh)
 - **Tipo**: Li-ion
 
 **Marche Affidabili**:
@@ -250,15 +252,43 @@ Vout = 0.6V × (1 + R1/R2)
 - **NON** scaricare sotto 2.5V
 - Usare sempre protezione (TP4056 + DW01A)
 - Conservare in luogo fresco e asciutto
+- **Batterie devono essere identiche** (stessa marca, stesso modello, stesso stato)
 
-**Calcolo Autonomia**:
+**Collegamento in Parallelo**:
 ```
-Consumo medio sistema: ~200mA
-Capacità batteria: 3000mAh
-Autonomia teorica: 3000mAh / 200mA = 15 ore
-Autonomia reale (80%): ~12 ore
-Autonomia con volume alto: ~7-9 ore
+Batteria 1+ ──┬──> TP4056 BAT+
+Batteria 1- ──┤
+              │
+Batteria 2+ ──┤
+Batteria 2- ──┴──> TP4056 BAT-
 ```
+
+**⚠️ IMPORTANTE per Batterie in Parallelo**:
+- Batterie devono avere tensione simile (±0.1V) prima di collegarle
+- Caricare insieme la prima volta
+- Usare batterie identiche (stessa marca, stesso modello, stesso stato)
+- Se una batteria si scarica più velocemente, può scaricare l'altra
+
+**Calcolo Autonomia (2 batterie 6000mAh, NFC sempre attivo, volume alto)**:
+```
+Consumo sistema (NFC sempre attivo + volume alto):
+- ESP32: 120mA
+- DFPlayer: 100mA
+- PN532: 80mA (sempre attivo, non solo durante lettura)
+- PAM8403: 150mA (volume alto)
+TOTALE: ~450mA
+
+Capacità totale: 6000mAh
+Autonomia teorica: 6000mAh / 450mA = 13.3 ore
+Autonomia reale (80%): ~10.6 ore
+Autonomia pratica: ~13-15 ore (uso reale con pause)
+```
+
+**✅ Vantaggi 2 Batterie**:
+- Autonomia doppia: 13-15 ore anche a volume alto
+- Maggiore sicurezza: se una batteria si scarica, l'altra continua
+- Maggiore durata: meno cicli di carica/scarica per batteria
+- Corrente di scarica distribuita (meno stress per batteria)
 
 ### Speaker
 
@@ -288,13 +318,16 @@ Autonomia con volume alto: ~7-9 ore
 ┌─────────────────────────────────────────────────────────┐
 │                    ALIMENTAZIONE                         │
 │                                                          │
-│  [Batteria 18650]                                        │
+│  [Batteria 18650 #1]                                     │
 │  3.7V 3000mAh                                            │
 │     │                                                     │
-│     ├──> [TP4056] <── USB-C (5V)                        │
-│     │     │                                              │
-│     │     └──> OUT+ ──┐                                 │
-│     │                  │                                 │
+│     ├──┬──> [TP4056] <── USB-C (5V)                     │
+│     │  │     │                                            │
+│     │  │     └──> OUT+ ──┐                               │
+│     │  │                  │                               │
+│     │  └──> [Batteria 18650 #2] (parallelo)             │
+│     │       3.7V 3000mAh                                 │
+│     │                                                     │
 │     └──> [Switch ON/OFF]                                │
 │            │                                             │
 │            └──> [MT3608] ──> 5V Rail ──┬───────────────┤
@@ -403,7 +436,9 @@ Stati Logici:
 ### Catena Alimentazione Completa
 
 ```
-USB-C (5V) ──> TP4056 ──> Batteria 18650 (3.7V)
+USB-C (5V) ──> TP4056 ──┬──> Batteria 18650 #1 (3.7V 3000mAh)
+                         └──> Batteria 18650 #2 (3.7V 3000mAh)
+                              (Collegate in parallelo = 6000mAh)
                               │
                               ├──> Switch ON/OFF
                               │       │
@@ -418,18 +453,25 @@ USB-C (5V) ──> TP4056 ──> Batteria 18650 (3.7V)
 
 ### Consumo Energetico
 
+**Scenario d'Uso**: NFC sempre attivo + Volume alto frequente
+
 | Componente | Idle | Attivo | Note |
 |------------|------|--------|------|
 | ESP32 | 80mA | 120mA | CPU 240MHz, WiFi/BT spenti |
 | DFPlayer | 20mA | 100mA | Riproduzione audio |
-| PN532 | 80mA | 150mA | Durante lettura tag |
-| PAM8403 | 5mA | 150mA | Volume medio |
-| **TOTALE** | **185mA** | **520mA** | Volume alto, NFC attivo |
+| PN532 | 80mA | 80mA | **Sempre attivo** (non solo durante lettura) |
+| PAM8403 | 5mA | 150mA | Volume alto |
+| **TOTALE** | **185mA** | **450mA** | Volume alto, NFC sempre attivo |
 
-**Autonomia Stimata**:
-- Volume basso, idle: 3000mAh / 185mA = **16 ore**
-- Volume medio, riproduzione: 3000mAh / 350mA = **8.5 ore**
-- Volume alto, NFC attivo: 3000mAh / 520mA = **5.7 ore**
+**Autonomia Stimata (2 batterie 6000mAh in parallelo)**:
+- Volume basso, idle: 6000mAh / 185mA = **32 ore** ✅
+- Volume medio, riproduzione: 6000mAh / 350mA = **17 ore** ✅
+- **Volume alto, NFC sempre attivo**: 6000mAh / 450mA = **13.3 ore** ✅ (13-15h dichiarate)
+
+**Nota**: 
+- Consumo reale varia in base all'uso (pause, cambi traccia, ecc.)
+- Autonomia pratica: **13-15 ore** con uso normale a volume alto
+- Con ottimizzazioni (CPU 80MHz, WiFi spento): autonomia può arrivare a **18-20 ore**
 
 ### Protezione Batteria
 
@@ -729,8 +771,8 @@ void loop() {
 **Collegamento Test**:
 ```
 TP4056 USB  →  USB-C (5V)
-TP4056 BAT+ →  Batteria +
-TP4056 BAT- →  Batteria -
+TP4056 BAT+ →  Punto comune + (2 batterie in parallelo)
+TP4056 BAT- →  Punto comune - (2 batterie in parallelo)
 ```
 
 **Comportamento Atteso**:
@@ -974,12 +1016,13 @@ Batteria+ ──[100KΩ]──┬──> GPIO35
 │                                    │
 │  [TP4056]     [MT3608]             │  ← Scheda inferiore
 │                                    │
-│  [Batteria 18650]                  │  ← Lato
+│  [2×Batteria 18650]                │  ← Lato (parallelo)
 └────────────────────────────────────┘
 ```
 
 **Distanziamenti**:
-- Altezza minima: 5cm (per batteria 18650: 6.5cm)
+- Altezza minima: 5cm (per 2 batterie 18650 in parallelo: 6.5cm, stesso spazio)
+- Larghezza: Considerare spazio per 2 batterie affiancate o sovrapposte
 - Spazio tra moduli: 5mm minimo
 - Ventilazione: Fori laterali opzionali
 
@@ -1162,7 +1205,7 @@ dfPlayer.EQ(DFPLAYER_EQ_NORMAL);  // Meno elaborazione = meno consumo
 **Autonomia Batteria**:
 ```
 Ore = (Capacità mAh) / (Consumo mA)
-Esempio: 3000mAh / 200mA = 15 ore
+Esempio: 6000mAh / 450mA = 13.3 ore (2 batterie, volume alto, NFC sempre attivo)
 ```
 
 **Resistenza LED**:

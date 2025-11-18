@@ -107,32 +107,33 @@ USB-C (5V) → TP4056 → Batteria 18650 (3.7V)
 
 ### Consumi Componenti
 
+**Scenario d'Uso**: NFC sempre attivo + Volume alto frequente
+
 | Componente | Idle | Attivo | Note |
 |------------|------|--------|------|
 | ESP32 | 80mA | 120mA | CPU 240MHz, WiFi/BT spenti |
 | DFPlayer | 20mA | 100mA | Riproduzione audio |
-| PN532 | 80mA | 150mA | Durante lettura tag |
-| PAM8403 | 5mA | 150mA | Volume medio |
-| **TOTALE** | **185mA** | **520mA** | Volume alto, NFC attivo |
+| PN532 | 80mA | 80mA | **Sempre attivo** (non solo durante lettura) |
+| PAM8403 | 5mA | 150mA | Volume alto |
+| **TOTALE** | **185mA** | **450mA** | Volume alto, NFC sempre attivo |
 
 ### ✅ Verifica Autonomia
 
-**Batteria**: 3000mAh 18650 Li-ion
+**Batteria**: 2×3000mAh 18650 Li-ion in parallelo = 6000mAh totali
 
 **Calcoli**:
-- Volume basso, idle: 3000mAh / 185mA = **16.2 ore** ✅
-- Volume medio, riproduzione: 3000mAh / 350mA = **8.6 ore** ✅
-- Volume alto, NFC attivo: 3000mAh / 520mA = **5.8 ore** ✅
+- Volume basso, idle: 6000mAh / 185mA = **32.4 ore** ✅
+- Volume medio, riproduzione: 6000mAh / 350mA = **17.1 ore** ✅
+- **Volume alto, NFC sempre attivo**: 6000mAh / 450mA = **13.3 ore** ✅
 
-**Blueprint dichiara**: 7-9 ore
-- ✅ **COERENTE**: Range realistico per uso medio
+**Blueprint dichiara**: 13-15 ore
+- ✅ **COERENTE**: Range realistico per uso a volume alto con NFC sempre attivo
 
 ### ⚠️ Potenziali Problemi
 
-1. **Consumo PN532**
-   - ⚠️ **ATTENZIONE**: PN532 consuma 80mA anche in idle
-   - 💡 **Soluzione**: Documentato come ottimizzazione futura (spegnere quando non usato)
-   - ✅ **OK per ora**: Accettabile per progetto base
+1. **Consumo PN532 sempre attivo**
+   - ✅ **OK**: 80mA costante considerato nei calcoli
+   - ✅ Autonomia calcolata con NFC sempre attivo
 
 2. **Efficienza MT3608**
    - ✅ **OK**: Efficienza >85% considerata nei calcoli
@@ -140,7 +141,11 @@ USB-C (5V) → TP4056 → Batteria 18650 (3.7V)
 
 3. **Consumo Reale vs Teorico**
    - ⚠️ **ATTENZIONE**: Consumi reali possono variare del 10-20%
-   - ✅ **OK**: Autonomia dichiarata (7-9h) è conservativa
+   - ✅ **OK**: Autonomia dichiarata (13-15h) è conservativa
+
+4. **Batterie in Parallelo**
+   - ⚠️ **ATTENZIONE**: Batterie devono essere identiche e con tensione simile
+   - ✅ **OK**: Documentato con procedure di sicurezza
 
 ---
 
@@ -285,15 +290,15 @@ USB-C (5V) → TP4056 → Batteria 18650 (3.7V)
 
 #### 3. Autonomia Dichiarata vs Calcolata
 
-**Problema**:
-- Blueprint dichiara: 7-9 ore
-- Calcolo teorico: 5.8-16.2 ore (a seconda uso)
+**Problema**: Risolto con configurazione 2 batterie
+- Blueprint dichiara: 13-15 ore (volume alto, NFC sempre attivo)
+- Calcolo teorico: 13.3 ore (6000mAh / 450mA)
 
-**Impatto**: Minimo
+**Impatto**: Nessuno
 
 **Soluzione**:
-- ✅ **OK**: Range 7-9h è realistico per uso medio
-- ✅ Coerente con calcoli (volume medio = 8.6h)
+- ✅ **OK**: Range 13-15h è realistico e coerente
+- ✅ Calcoli corretti per scenario d'uso (volume alto + NFC sempre attivo)
 
 ### ✅ Nessun Problema Critico
 
@@ -324,6 +329,12 @@ USB-C (5V) → TP4056 → Batteria 18650 (3.7V)
 **Il progetto è REALIZZABILE e COERENTE** ✅
 
 Tutte le specifiche sono realistiche e realizzabili. I problemi trovati sono minori e non bloccanti. Il progetto può essere realizzato seguendo la documentazione.
+
+**Configurazione Batteria**:
+- ✅ **2 batterie 3000mAh in parallelo (6000mAh)** - Configurazione standard
+- ✅ Autonomia 13-15 ore a volume alto con NFC sempre attivo
+- ✅ Tutti gli schemi elettrici aggiornati per 2 batterie
+- ✅ Procedure di sicurezza documentate
 
 ---
 

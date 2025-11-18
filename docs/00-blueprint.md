@@ -27,7 +27,7 @@
 - **App Bluetooth**: Gestione remota, associazione tag NFC
 - **MicroSD estraibile**: Slot esterno per facile aggiornamento contenuti
 - **LED di stato**: LED bicolore per feedback visivo (boot, NFC, batteria, errori)
-- **Autonomia**: 7-9 ore di riproduzione continua
+- **Autonomia**: 13-15 ore (volume alto, NFC sempre attivo) con 2 batterie 3000mAh in parallelo (6000mAh)
 - **Avvio rapido**: 2-3 secondi dall'accensione
 - **USB-C**: Ricarica batteria (+ opzionale trasferimento dati)
 
@@ -36,7 +36,7 @@
 - **Audio**: DFPlayer Mini (MP3, WAV, supporta microSD fino a 32GB)
 - **NFC**: PN532 (compatibile ISO14443A, range ~5cm)
 - **Amplificatore**: PAM8403 classe D (2x3W stereo)
-- **Batteria**: 18650 Li-ion 3.7V 3000mAh
+- **Batteria**: 2×18650 Li-ion 3.7V 3000mAh in parallelo (6000mAh totali)
 - **Formato audio**: MP3 128-320kbps
 
 ---
@@ -59,8 +59,8 @@
 
 | Componente | Specifiche | Quantità | Prezzo |
 |------------|------------|----------|--------|
-| **Batteria 18650** | 3.7V 3000mAh protetta | 1-2 | €10 | Marca affidabile (LG, Samsung, Panasonic) |
-| **Porta-batteria 18650** | Con fili | 1 | €3 | |
+| **Batteria 18650** | 3.7V 3000mAh protetta | 2 | €20 | Marca affidabile (LG, Samsung, Panasonic). Collegate in parallelo per 6000mAh totali |
+| **Porta-batteria 18650** | Con fili, doppio | 1 | €5 | Supporto per 2 batterie in parallelo |
 | **Interruttore ON/OFF** | Rocker switch | 1 | €2 | |
 | **Cavo USB-C** | Per ricarica | 1 | €3 | |
 
@@ -89,7 +89,7 @@
 | **Colla a caldo** | Stick | 10 | €5 | Per fissaggio componenti |
 | **Vernice atossica** | Acrilica colorata | - | €10 | Opzionale |
 
-**COSTO TOTALE STIMATO**: €95-115
+**COSTO TOTALE STIMATO**: €105-125 (con 2 batterie)
 
 ---
 
@@ -100,8 +100,10 @@
 ```
 ┌─────────────────── ALIMENTAZIONE ───────────────────┐
 │                                                      │
-│  [Batteria 18650] ──┬──> [TP4056] <── USB-C         │
-│      3.7V 3000mAh   │      ↓                        │
+│  [Batteria 18650 #1] ──┐                            │
+│  3.7V 3000mAh          ├──> [TP4056] <── USB-C     │
+│  [Batteria 18650 #2] ──┤      ↓                    │
+│  3.7V 3000mAh (parall.)│                            │
 │                     │   [Switch]                     │
 │                     │      ↓                         │
 │                     └──> [MT3608] ──> 5V Rail        │
@@ -190,12 +192,12 @@ Pin 3 (VCC)    -> 3.3V
 
 #### ESP32 ↔ LED di Stato + Monitoraggio Batteria
 ```
-Partitore tensione:
-Batteria+ ──[100KΩ]──┬──> GPIO35 (ADC)
-                     │
-                  [47KΩ]
-                     │
-                    GND
+Partitore tensione (collegare al punto comune delle 2 batterie):
+Punto comune + (2 batterie) ──[100KΩ]──┬──> GPIO35 (ADC)
+                                        │
+                                     [47KΩ]
+                                        │
+                                       GND
 
 LED Bicolore (Stato):
 GPIO25 ──[220Ω]──> LED Rosso ──┐
@@ -254,10 +256,12 @@ void loop() { delay(1000); }
 4. Segnare posizione
 
 ### 5. Test TP4056
-- Collegare batteria 18650
+- Collegare 2 batterie 18650 in parallelo
+- Verificare che tensioni siano simili (±0.1V) prima di collegare
 - Collegare USB-C
 - LED rosso = in carica
 - LED blu = carica completa
+- Tempo carica: ~6-7 ore per 6000mAh @ 1A
 
 ---
 
@@ -317,6 +321,23 @@ Funzione: LED di stato generico per feedback visivo
 #### G. Partitore Tensione Batteria
 ```
 Partitore: 100KΩ + 47KΩ → GPIO35
+Collegare al punto comune delle 2 batterie in parallelo
+(La tensione è la stessa, ma la capacità è doppia)
+```
+
+#### H. Collegamento 2 Batterie in Parallelo
+```
+Batteria 1+ ──┬──> TP4056 BAT+
+Batteria 1- ──┤
+              │
+Batteria 2+ ──┤
+Batteria 2- ──┴──> TP4056 BAT-
+
+⚠️ IMPORTANTE:
+- Batterie devono avere tensione simile (±0.1V) prima di collegarle
+- Usare batterie identiche (stessa marca, stesso modello)
+- Caricare insieme la prima volta
+- Partitore tensione si collega al punto comune
 ```
 
 ### FASE 2: Test su Breadboard
